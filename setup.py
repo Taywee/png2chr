@@ -27,6 +27,7 @@ setup(
         ],
     install_requires=[
         'six',
+        'pypng',
         ],
     classifiers=[
         'Intended Audience :: Developers',
