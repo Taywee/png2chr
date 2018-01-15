@@ -4,19 +4,19 @@
 # This code is released under the license described in the LICENSE file
 
 from __future__ import division, absolute_import, print_function, unicode_literals
-from six import iterbytes
 
 from itertools import count, chain
 import sys
 import locale
 import argparse
+
 import png
 
 def bytetobits(byte):
     '''Takes a byte (as an int) and returns an iterator to iterate per-bit'''
     # All bits from large to small (left-to-right)
     for bit in list(reversed(range(8))):
-        yield bool(byte & (2 ** bit))
+        yield bool(byte & (1 << bit))
 
 def processtile(rawtile):
     '''Take in a raw 16-byte array for a tile and process it into its final
@@ -30,18 +30,18 @@ def processtile(rawtile):
     first = (bytetobits(byte) for byte in rawtile[:8])
     second = (bytetobits(byte) for byte in rawtile[8:])
 
-    # yield row generators
-    for row1, row2 in zip(first, second):
-        yield ((bit1 << 1) | bit2 for bit1, bit2 in zip(row1, row2))
+    # yield row generators.  First is bit 0
+    for row0, row1 in zip(first, second):
+        yield (int(bit0) | (int(bit1) << 1) for bit0, bit1 in zip(row0, row1))
 
 
 def main():
     parser = argparse.ArgumentParser(description='Convert from CHR to PNG')
-    parser.add_argument('-V', '--version', action='version', version='0.0.0')
+    parser.add_argument('-V', '--version', action='version', version='0.1.0')
     parser.add_argument('-i', '--input', help='Input CHR file (default stdin)',
-        type=argparse.FileType('rb'), default=sys.stdin)
+        type=argparse.FileType('rb'), default=sys.stdin.buffer)
     parser.add_argument('-o', '--output', help='Output PNG file (default stdout)',
-        type=argparse.FileType('wb'), default=sys.stdout)
+        type=argparse.FileType('wb'), default=sys.stdout.buffer)
     args = parser.parse_args()
 
     tiles = []
@@ -51,10 +51,10 @@ def main():
             break
         if len(rawtile) != 16:
             raise RuntimeError('Input file not a multiple of 16 bytes')
-        tiles.append(processtile(iterbytes(rawtile)))
+        tiles.append(processtile(rawtile))
 
 
-    palette = [
+    palette = (
         # Black
         (0x00, 0x00, 0x00, 0xff),
         # Red
@@ -63,7 +63,7 @@ def main():
         (0x00, 0xff, 0x00, 0xff),
         # Blue
         (0x00, 0x00, 0xff, 0xff),
-    ]
+    )
 
     rowlist = []
     for y in range(32):
@@ -80,4 +80,3 @@ def main():
 if __name__ == '__main__':
     locale.setlocale(locale.LC_ALL, '')
     main()
-
